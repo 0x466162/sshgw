@@ -1,0 +1,107 @@
+#!/bin/sh
+DEBUG=1
+PATH=/bin:/usr/bin:/usr/local/bin
+
+[[ -n "$DEBUG" ]] && \
+{
+    logger -t sshgw -p authpriv.debug "SSH_CONNECTION: ${SSH_CONNECTION}"
+    logger -t sshgw -p authpriv.debug "SSH_ORIGINAL_COMMAND: 
+${SSH_ORIGINAL_COMMAND}"
+}
+
+SSHGW_USER="$1"
+SERVER="${SSH_ORIGINAL_COMMAND}"
+DB="/home/_sshgw/sshgw.db"
+DB=/dev/null
+
+access_ok()
+{
+    user="$1"
+    server="$2"
+
+    # check if we have been called with the right amount of arguments
+    [[ -z "$user" || -z "$server" ]] &&
+    {
+        echo "access_ok(): wrong list of arguments" >&2
+        exit 1
+    }
+
+    # query the database
+    if [[ "`query_ALL $user $server`" -gt 0 ]]; then
+        return 0
+    elif [[ "`query_GROUPS $user $server`" -gt 0 ]]; then
+        return 0
+    elif [[ "`query_SERVER $user $server`" -gt 0 ]]; then
+        return 0
+    fi
+    return 1
+}
+
+query_ALL()
+{
+    user="$1"
+    server="$2"
+    sqlite3 2>/dev/null $DB <<EOF
+SELECT access.id FROM access WHERE user="$user" AND groups='ALL';
+EOF
+}
+
+query_GROUPS()
+{
+    user="$1"
+    server="$2"
+    sqlite3 2>/dev/null $DB <<EOF
+SELECT access.id FROM access, (SELECT name FROM groups WHERE 
+member="$server") WHERE user="$user" AND groups=name;
+EOF
+}
+
+query_SERVER()
+{
+    user="$1"
+    server="$2"
+    sqlite3 2>/dev/null $DB <<EOF
+SELECT id FROM access WHERE user="$user" AND server="$server";
+EOF
+}
+
+# sanity checks for SSHGW_USER and SERVER and DB
+if [[ X"${SSHGW_USER}" != X${SSHGW_USER} ]]; then
+    logger -t sshgw -p authpriv.warn "bad user: ${SSHGW_USER}"
+    exit 1
+elif [[ X"${SERVER}" != X${SERVER} ]]; then
+    logger -t sshgw -p authpriv.warn "bad servername: ${SERVER}"
+    exit 1
+fi
+
+[[ -r "${DB}" ]] || \
+{
+    echo "$DB: no such database" >&2
+    exit 1
+}
+
+{
+    host "${SERVER}" >/dev/null 2>&1 || \
+	getent hosts "${SERVER}" > /dev/null
+} || \
+{
+    echo "${SERVER}: host unknown"; >&2
+    exit 1
+}
+
+if access_ok "$SSHGW_USER" "$SERVER"; then
+    # log this and connect to server
+    logger -t sshgw -p authpriv.info "START connection for $SSHGW_USER to 
+$SERVER"
+    socat -T 86400 - TCP4:$SERVER:22
+    logger -t sshgw -p authpriv.info "END connection for $SSHGW_USER to 
+$SERVER"
+else
+    # log and disconnect
+    logger -t sshgw -p authpriv.warning "DENIED connection for $SSHGW_USER 
+to $SERVER"
+    echo "access denied" >&2
+    exit 1
+fi
+exit 0
+#EOF
