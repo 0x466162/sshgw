@@ -12,12 +12,12 @@ ${SSH_ORIGINAL_COMMAND}"
 SSHGW_USER="$1"
 SERVER="${SSH_ORIGINAL_COMMAND}"
 DB="/home/_sshgw/sshgw.db"
-DB=/dev/null
+[[ -n "$DEBUG" ]] && DB=./sshgw.db
 
 access_ok()
 {
-    user="$1"
-    server="$2"
+    local user="$1"
+    local server="${2%%.}"
 
     # check if we have been called with the right amount of arguments
     [[ -z "$user" || -z "$server" ]] &&
@@ -27,41 +27,20 @@ access_ok()
     }
 
     # query the database
-    if [[ "`query_ALL $user $server`" -gt 0 ]]; then
-        return 0
-    elif [[ "`query_GROUPS $user $server`" -gt 0 ]]; then
-        return 0
-    elif [[ "`query_SERVER $user $server`" -gt 0 ]]; then
-        return 0
-    fi
-    return 1
+    [[ X"$(query_DB $user $server)" = 'X' ]] && return 1
+    return 0
 }
 
-query_ALL()
+query_DB()
 {
-    user="$1"
-    server="$2"
+    local user="$1"
+    local server="$2"
     sqlite3 2>/dev/null $DB <<EOF
-SELECT access.id FROM access WHERE user="$user" AND groups='ALL';
-EOF
-}
-
-query_GROUPS()
-{
-    user="$1"
-    server="$2"
-    sqlite3 2>/dev/null $DB <<EOF
-SELECT access.id FROM access, (SELECT name FROM groups WHERE 
-member="$server") WHERE user="$user" AND groups=name;
-EOF
-}
-
-query_SERVER()
-{
-    user="$1"
-    server="$2"
-    sqlite3 2>/dev/null $DB <<EOF
-SELECT id FROM access WHERE user="$user" AND server="$server";
+SELECT DISTINCT(a.user) FROM access a, hosts h WHERE
+  (a.user="$user" AND a.groupname='*') OR
+  (a.user="$user" AND a.groupname=h.memberof AND h.fqdn="$server") OR
+  (a.user="$user" AND a.hostname="$server")
+/
 EOF
 }
 
@@ -93,7 +72,7 @@ if access_ok "$SSHGW_USER" "$SERVER"; then
     # log this and connect to server
     logger -t sshgw -p authpriv.info "START connection for $SSHGW_USER to 
 $SERVER"
-    socat -T 86400 - TCP4:$SERVER:22
+    echo "socat -T 86400 - TCP4:$SERVER:22"
     logger -t sshgw -p authpriv.info "END connection for $SSHGW_USER to 
 $SERVER"
 else
