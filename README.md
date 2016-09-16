@@ -23,15 +23,9 @@ This is a heavily moving target and not production ready by any means!
     PasswordAuthentication  no
     TrustedUsersCAFile      /etc/ssh/ca.pub
     Match User _sshgw
-<<<<<<< HEAD
             X11Forwarding       no
             AllowTcpForwarding  yes
             ForceCommand        /home/_sshgw/sshgw
-=======
-            X11Forwarding no
-            AllowTcpForwarding yes
-            ForceCommand /home/_sshgw/sshgw
->>>>>>> eca7ee85f77bfa27cbe330880f4bbaf069eb97f6
 
 #### create _sshgw user
 This step heavily depends on your OS but be sure that your _sshgw user
