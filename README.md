@@ -3,11 +3,11 @@ channel and control all ssh connections at a single point.
 
 The concept I am currently working on is to based on the following corner stones:
 
-  o  access is granted only via signed keys
-  o  access is granted only if channeled through the gateway
-  o  the user himself has no control over the keys that grant access to the backend
-  o  the user requests access to a system via a frontend (probably web based service) which will generate a signed key for a fixed amount of time
-  o  the gateway grants access to specific systems only for any given cert
+  *  access is granted only via signed keys
+  *  access is granted only if channeled through the gateway
+  *  the user himself has no control over the keys that grant access to the backend
+  *  the user requests access to a system via a frontend (probably web based service) which will generate a signed key for a fixed amount of time
+  *  the gateway grants access to specific systems only for any given cert
 
 The current working state is using remote commands instead of proxy commands, I am undecided which of the two I want to have for the final product as both have different pros and cons.
 
@@ -37,6 +37,7 @@ of 13 asterisks via  usermod(8) e.g.:
 
 ### setting up CA
 Create a dedicated user and key for the CA. It's advisable to do so on a different machine.
+
     adduser
     usermod -p '*************' _sshca
     su -l _sshca
@@ -47,10 +48,12 @@ Create a dedicated user and key for the CA. It's advisable to do so on a differe
 Then distribut the ca.pub to the fleet under /etc/ssh/ca.pub with 0444 permissions.
 
 #### create and populate the database
-$( umask 0027 ; >/var/db/sshgw.db )
-chgrp _sshgw /var/db/sshgw.db
+
+    $( umask 0027 ; >/var/db/sshgw.db )
+    chgrp _sshgw /var/db/sshgw.db
 
 For database setup see SCHEMAS.md
 
 #### login
+
     ssh sshgw user@target
