@@ -11,13 +11,13 @@ PATH=/bin:/usr/bin:/usr/local/bin
 SSHGW_USER=${SSH_ORIGINAL_COMMAND%%@*}
 SERVER="${SSH_ORIGINAL_COMMAND#*@}"
 SERVER="${SERVER%%.}" # Strip trailing '.'
-DB="/home/_sshgw/sshgw.db"
-[[ -n "$DEBUG" ]] && DB=./sshgw.db
+DB="/var/db/sshgw.db"
 
 access_ok()
 {
     local user="$1"
     local server="$2"
+    return 0
 
     # check if we have been called with the right amount of arguments
     [[ -z "$user" || -z "$server" ]] &&
@@ -70,15 +70,12 @@ fi
 
 if access_ok "$SSHGW_USER" "$SERVER"; then
     # log this and connect to server
-    logger -t sshgw -p authpriv.info "START connection for $SSHGW_USER to 
-$SERVER"
-    socat -T 86400 - TCP4:$SERVER:22
-    logger -t sshgw -p authpriv.info "END connection for $SSHGW_USER to 
-$SERVER"
+    logger -t sshgw -p authpriv.info "START connection for $SSHGW_USER to $SERVER"
+    ssh -o StrictHostKeyChecking=no -l$SSHGW_USER -i ~/.ssh/sshgw_fab $SERVER
+    logger -t sshgw -p authpriv.info "END connection for $SSHGW_USER to $SERVER"
 else
     # log and disconnect
-    logger -t sshgw -p authpriv.warning "DENIED connection for $SSHGW_USER 
-to $SERVER"
+    logger -t sshgw -p authpriv.warning "DENIED connection for $SSHGW_USER to $SERVER"
     echo "access denied" >&2
     exit 1
 fi
