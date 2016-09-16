@@ -2,13 +2,17 @@
 DEBUG=1
 PATH=/bin:/usr/bin:/usr/local/bin
 
+SSHGW_USER=$1
+
 [[ -n "$DEBUG" ]] && \
 {
     logger -t sshgw -p authpriv.debug "SSH_CONNECTION: ${SSH_CONNECTION}"
     logger -t sshgw -p authpriv.debug "SSH_ORIGINAL_COMMAND: ${SSH_ORIGINAL_COMMAND}"
 }
 
-SSHGW_USER=${SSH_ORIGINAL_COMMAND%%@*}
+[[ -z $SSHGW_USER ]] && exit 1
+
+REMOTE_USER=${SSH_ORIGINAL_COMMAND%%@*}
 SERVER="${SSH_ORIGINAL_COMMAND#*@}"
 SERVER="${SERVER%%.}" # Strip trailing '.'
 DB="/var/db/sshgw.db"
@@ -44,9 +48,9 @@ SELECT DISTINCT(a.user) FROM access a, hosts h WHERE
 EOF
 }
 
-# sanity checks for SSHGW_USER and SERVER and DB
-if [[ X"${SSHGW_USER}" != X${SSHGW_USER} ]]; then
-    logger -t sshgw -p authpriv.warn "bad user: ${SSHGW_USER}"
+# sanity checks for REMOTE_USER and SERVER and DB
+if [[ X"${REMOTE_USER}" != X${REMOTE_USER} ]]; then
+    logger -t sshgw -p authpriv.warn "bad user: ${REMOTE_USER}"
     exit 1
 elif [[ X"${SERVER}" != X${SERVER} ]]; then
     logger -t sshgw -p authpriv.warn "bad servername: ${SERVER}"
@@ -59,23 +63,19 @@ fi
     exit 1
 }
 
-{
-    host "${SERVER}" >/dev/null 2>&1 || \
-	getent hosts "${SERVER}" > /dev/null
-} || \
-{
-    echo "${SERVER}: host unknown"; >&2
-    exit 1
-}
+case "$REMOTE_USER" in
+	'root')	KEY='sshgw-root';;
+	*)	KEY='sshgw';;
+esac
 
-if access_ok "$SSHGW_USER" "$SERVER"; then
+if access_ok "$REMOTE_USER" "$SERVER"; then
     # log this and connect to server
-    logger -t sshgw -p authpriv.info "START connection for $SSHGW_USER to $SERVER"
-    ssh -o StrictHostKeyChecking=no -l$SSHGW_USER -i ~/.ssh/sshgw_fab $SERVER
-    logger -t sshgw -p authpriv.info "END connection for $SSHGW_USER to $SERVER"
+    logger -t sshgw -p authpriv.info "START connection for $SSHGW_USER as $REMOTE_USER@$SERVER"
+    ssh -o StrictHostKeyChecking=no -l$REMOTE_USER -i ~/$SSHGW_USER/$KEY $SERVER
+    logger -t sshgw -p authpriv.info "END connection for $SSHGW_USER as $REMOTE_USER@$SERVER"
 else
     # log and disconnect
-    logger -t sshgw -p authpriv.warning "DENIED connection for $SSHGW_USER to $SERVER"
+    logger -t sshgw -p authpriv.warning "DENIED connection for $SSHGW_USER as $REMOTE_USER@$SERVER"
     echo "access denied" >&2
     exit 1
 fi
