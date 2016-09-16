@@ -7,7 +7,7 @@ The concept I am currently working on is to based on the following corner stones
   *  access is granted only if channeled through the gateway
   *  the user himself has no control over the keys that grant access to the backend
   *  unprivilegded user access is granted with a long living cert (e.g. 8h to cover a working day)
-  *  privilegded user access is only granted via a short lived cert (e.g. 5m) so the window of opportunity is kept small for someone
+  *  privilegded user access is only granted via a short lived cert (e.g. 5m) so the window of opportunity is kept small for an attacker / mischief
   *  the user requests access to a system via a frontend (probably web based service) which will generate a signed key for a fixed amount of time
   *  the gateway grants access to specific systems only for any given cert
 
