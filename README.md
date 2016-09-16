@@ -70,9 +70,12 @@ Then distribut the ca.pub to the fleet under /etc/ssh/ca.pub with 0444 permissio
 #### sign keys
 
   * unprivileged access
+
     ssh-keygen -s .ssh/ca -I <keyid> -V+8h -n unpriv -z <serial> /path/to/key.pub
+
   * privileged access
-    ssh-keygen -s .ssh/ca -I <keyid> -V+8h -n root -z <serial> /path/to/key.pub
+
+    ssh-keygen -s .ssh/ca -I <keyid> -V+5m -n root -z <serial> /path/to/key.pub
 
 ### login
 
